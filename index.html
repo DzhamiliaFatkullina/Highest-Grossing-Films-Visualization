@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Highest Grossing Films</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Highest Grossing Films</h1>
+    </header>
+
+    <section id="filters">
+        <h2>Filters</h2>
+        <label for="directorFilter">Director:</label>
+        <select id="directorFilter">
+            <option value="">All</option>
+        </select>
+
+        <label for="countryFilter">Country:</label>
+        <select id="countryFilter">
+            <option value="">All</option>
+        </select>
+
+        <label for="yearFilter">Year:</label>
+        <input type="number" id="yearFilter" placeholder="Year">
+
+        <label for="grossFilter">Gross (Minimum):</label>
+        <input type="number" id="grossFilter" placeholder="Minimum Gross">
+
+        <!-- <label for="yearTimeline">Release Year Range:</label>
+        <div id="yearTimelineContainer">
+            <div id="yearTimeline">
+                <div id="startYearDot" class="timelineDot"></div>
+                <div id="endYearDot" class="timelineDot"></div>
+            </div>
+            <div id="yearRangeDisplay">
+                <span id="startYearDisplay"></span> - <span id="endYearDisplay"></span>
+            </div>
+        </div>
+
+        <label for="grossTimeline">Worldwide Gross Range:</label>
+        <div id="grossTimelineContainer">
+            <div id="grossTimeline">
+                <div id="minGrossDot" class="timelineDot"></div>
+                <div id="maxGrossDot" class="timelineDot"></div>
+            </div>
+            <div id="grossRangeDisplay">
+                <span id="minGrossDisplay"></span> - <span id="maxGrossDisplay"></span>
+            </div>
+        </div> -->
+
+        <button id="applyFilters">Apply Filters</button>
+        <button id="resetFilters">Reset Filters</button> <!-- Added Reset Button -->
+    </section>
+
+    <section id="movie-table-container">
+        <table id="movie-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Worldwide Gross</th>
+                    <th>Release Year</th>
+                    <th>Director</th>
+                    <th>Country</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Movie data will be inserted here by JavaScript -->
+            </tbody>
+        </table>
+    </section>
+
+    <footer>
+        <p>&copy; 2024 My Movie Data App</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
