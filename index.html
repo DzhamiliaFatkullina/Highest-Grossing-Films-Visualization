@@ -23,13 +23,12 @@
             <option value="">All</option>
         </select>
 
-        <label for="yearFilter">Year:</label>
-        <input type="number" id="yearFilter" placeholder="Year">
+        <button id="applyFilters">Apply Filters</button>
+        <button id="resetFilters">Reset Filters</button> <!-- Added Reset Button -->
 
-        <label for="grossFilter">Gross (Minimum):</label>
-        <input type="number" id="grossFilter" placeholder="Minimum Gross">
+        <div class="timeline-spacer"></div> 
 
-        <!-- <label for="yearTimeline">Release Year Range:</label>
+        <label for="yearTimeline">Release Year Range:</label>
         <div id="yearTimelineContainer">
             <div id="yearTimeline">
                 <div id="startYearDot" class="timelineDot"></div>
@@ -49,11 +48,18 @@
             <div id="grossRangeDisplay">
                 <span id="minGrossDisplay"></span> - <span id="maxGrossDisplay"></span>
             </div>
-        </div> -->
-
-        <button id="applyFilters">Apply Filters</button>
-        <button id="resetFilters">Reset Filters</button> <!-- Added Reset Button -->
+        </div>
     </section>
+
+    <style>
+        .filter-buttons {
+            margin-bottom: 20px; /* Add some spacing below the buttons */
+        }
+    
+        .timeline-spacer {
+            margin-bottom: 30px; /* Adjust the value to increase/decrease spacing */
+        }
+    </style>
 
     <section id="movie-table-container">
         <table id="movie-table">
