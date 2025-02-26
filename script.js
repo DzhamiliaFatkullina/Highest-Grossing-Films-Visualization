@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
     let movies = []; // Store movie data globally
+    let sortState = { column: null, order: null }; // Track sorting state
 
     // Load JSON data
     fetch('output.json')
@@ -156,6 +157,17 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Sort movies by a specific column
+    function sortMovies(movies, column, order) {
+        return movies.sort((a, b) => {
+            if (order === 'asc') {
+                return a[column] > b[column] ? 1 : -1;
+            } else {
+                return a[column] < b[column] ? 1 : -1;
+            }
+        });
+    }
+
     // Apply filters and display movies
     function filterAndDisplayMovies(movies) {
         const director = document.getElementById('directorFilter').value;
@@ -165,7 +177,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const startGross = parseFloat(document.getElementById('minGrossDisplay').textContent.replace(/,/g, ''));
         const endGross = parseFloat(document.getElementById('maxGrossDisplay').textContent.replace(/,/g, ''));
 
-        const filteredMovies = filterMovies(movies, director, country, startYear, endYear, startGross, endGross);
+        let filteredMovies = filterMovies(movies, director, country, startYear, endYear, startGross, endGross);
+
+        // Apply sorting if a column is selected
+        if (sortState.column) {
+            filteredMovies = sortMovies(filteredMovies, sortState.column, sortState.order);
+        }
+
         displayMovies(filteredMovies);
     }
 
@@ -177,5 +195,43 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('countryFilter').value = '';
             filterAndDisplayMovies(movies);
         });
+
+        // Add sorting event listeners for buttons
+        document.getElementById('sortGrossAsc').addEventListener('click', () => {
+            sortState.column = 'worldwide_gross';
+            sortState.order = 'asc';
+            updateSortButtons('sortGrossAsc');
+            filterAndDisplayMovies(movies);
+        });
+
+        document.getElementById('sortGrossDesc').addEventListener('click', () => {
+            sortState.column = 'worldwide_gross';
+            sortState.order = 'desc';
+            updateSortButtons('sortGrossDesc');
+            filterAndDisplayMovies(movies);
+        });
+
+        document.getElementById('sortYearAsc').addEventListener('click', () => {
+            sortState.column = 'release_year';
+            sortState.order = 'asc';
+            updateSortButtons('sortYearAsc');
+            filterAndDisplayMovies(movies);
+        });
+
+        document.getElementById('sortYearDesc').addEventListener('click', () => {
+            sortState.column = 'release_year';
+            sortState.order = 'desc';
+            updateSortButtons('sortYearDesc');
+            filterAndDisplayMovies(movies);
+        });
+    }
+
+    // Update active sort button styles
+    function updateSortButtons(activeButtonId) {
+        // Remove active class from all sort buttons
+        document.querySelectorAll('.sort-btn').forEach(button => button.classList.remove('active'));
+
+        // Add active class to the clicked button
+        document.getElementById(activeButtonId).classList.add('active');
     }
 });
