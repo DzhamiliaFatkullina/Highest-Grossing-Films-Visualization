@@ -1,347 +1,181 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // 1. Load the JSON data
+document.addEventListener('DOMContentLoaded', function () {
+    let movies = []; // Store movie data globally
+
+    // Load JSON data
     fetch('output.json')
         .then(response => response.json())
         .then(data => {
-            const movies = data; // Store the movie data
-
-            // 2. Populate Filter Dropdowns
-            populateDirectorFilter(movies);
-            populateCountryFilter(movies);
-            initializeTimeline(movies);
-            initializeGrossTimeline(movies);
-
-            // 3. Event Listener for Filter Application
-            document.getElementById('applyFilters').addEventListener('click', function() {
-                filterAndDisplayMovies(movies);
-            });
-
-            // 4. Display Initial Data (All movies initially)
-            displayMovies(movies);
-
-            // 5. Event Listener for Reset Filters
-            document.getElementById('resetFilters').addEventListener('click', function() {
-                document.getElementById('directorFilter').value = "";
-                document.getElementById('countryFilter').value = "";
-                displayMovies(movies); // Display all movies again
-            });
-
+            movies = data;
+            initializeApp(movies);
         })
         .catch(error => console.error('Error loading JSON:', error));
 
-    // --- Helper Functions ---
+    function initializeApp(movies) {
+        populateDropdowns(movies);
+        initializeTimelines(movies);
+        setupEventListeners(movies);
+        displayMovies(movies); // Display all movies initially
+    }
 
-    function populateDirectorFilter(movies) {
-        const directorFilter = document.getElementById('directorFilter');
-        const directors = new Set(); // Use a Set to ensure unique values
+    // Populate director and country dropdowns
+    function populateDropdowns(movies) {
+        populateFilter('directorFilter', getUniqueValues(movies, 'director'));
+        populateFilter('countryFilter', getUniqueValues(movies, 'country'));
+    }
 
-        movies.forEach(movie => {
-            movie.director.forEach(director => directors.add(director));
-        });
-
-        directors.forEach(director => {
+    // Generic function to populate a dropdown filter
+    function populateFilter(filterId, values) {
+        const filter = document.getElementById(filterId);
+        values.forEach(value => {
             const option = document.createElement('option');
-            option.value = director;
-            option.textContent = director;
-            directorFilter.appendChild(option);
+            option.value = value;
+            option.textContent = value;
+            filter.appendChild(option);
         });
     }
 
-    function populateCountryFilter(movies) {
-        const countryFilter = document.getElementById('countryFilter');
-        const countries = new Set();
+    // Get unique values from a nested array property (e.g., director, country)
+    function getUniqueValues(movies, property) {
+        const values = new Set();
+        movies.forEach(movie => movie[property].forEach(value => values.add(value)));
+        return Array.from(values);
+    }
 
-        movies.forEach(movie => {
-            movie.country.forEach(country => countries.add(country));
+    // Initialize year and gross timelines
+    function initializeTimelines(movies) {
+        initializeTimeline('yearTimeline', 'startYearDot', 'endYearDot', 'startYearDisplay', 'endYearDisplay', movies, 'release_year');
+        initializeTimeline('grossTimeline', 'minGrossDot', 'maxGrossDot', 'minGrossDisplay', 'maxGrossDisplay', movies, 'worldwide_gross');
+    }
+
+    // Generic function to initialize a timeline
+    function initializeTimeline(timelineId, startDotId, endDotId, startDisplayId, endDisplayId, movies, property) {
+        const timeline = document.getElementById(timelineId);
+        const startDot = document.getElementById(startDotId);
+        const endDot = document.getElementById(endDotId);
+        const startDisplay = document.getElementById(startDisplayId);
+        const endDisplay = document.getElementById(endDisplayId);
+
+        const minValue = Math.min(...movies.map(movie => movie[property]));
+        const maxValue = Math.max(...movies.map(movie => movie[property]));
+
+        let startValue = minValue;
+        let endValue = maxValue;
+
+        updateDisplay(startDisplay, startValue, property);
+        updateDisplay(endDisplay, endValue, property);
+
+        setDotPosition(startDot, startValue, minValue, maxValue, timeline.offsetWidth);
+        setDotPosition(endDot, endValue, minValue, maxValue, timeline.offsetWidth);
+
+        makeDraggable(startDot, minValue, maxValue, timeline, startDisplay, endDisplay, property);
+        makeDraggable(endDot, minValue, maxValue, timeline, startDisplay, endDisplay, property);
+    }
+
+    // Update display values (year or gross)
+    function updateDisplay(displayElement, value, property) {
+        displayElement.textContent = property === 'release_year' ? value : value.toLocaleString();
+    }
+
+    // Set dot position on the timeline
+    function setDotPosition(dot, value, minValue, maxValue, timelineWidth) {
+        const position = ((value - minValue) / (maxValue - minValue)) * timelineWidth;
+        dot.style.left = `${position}px`;
+    }
+
+    // Make dots draggable
+    function makeDraggable(dot, minValue, maxValue, timeline, startDisplay, endDisplay, property) {
+        let isDragging = false;
+        let startX, startLeft;
+
+        dot.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            startLeft = dot.offsetLeft;
+            dot.style.cursor = 'grabbing';
         });
 
-        countries.forEach(country => {
-            const option = document.createElement('option');
-            option.value = country;
-            option.textContent = country;
-            countryFilter.appendChild(option);
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            const timelineWidth = timeline.offsetWidth;
+            let newLeft = startLeft + (e.clientX - startX);
+
+            if (dot.id.includes('start') || dot.id.includes('min')) {
+                newLeft = Math.max(0, Math.min(newLeft, document.getElementById(dot.id.replace('start', 'end').replace('min', 'max')).offsetLeft));
+            } else {
+                newLeft = Math.max(document.getElementById(dot.id.replace('end', 'start').replace('max', 'min')).offsetLeft, Math.min(newLeft, timelineWidth));
+            }
+
+            dot.style.left = `${newLeft}px`;
+
+            const newValue = Math.round(minValue + (newLeft / timelineWidth) * (maxValue - minValue));
+
+            if (dot.id.includes('start') || dot.id.includes('min')) {
+                startDisplay.textContent = property === 'release_year' ? newValue : newValue.toLocaleString();
+            } else {
+                endDisplay.textContent = property === 'release_year' ? newValue : newValue.toLocaleString();
+            }
+
+            filterAndDisplayMovies(movies);
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            dot.style.cursor = 'grab';
+        });
+
+        document.addEventListener('mouseleave', () => {
+            isDragging = false;
+            dot.style.cursor = 'grab';
         });
     }
 
+    // Filter movies based on selected criteria
     function filterMovies(movies, director, country, startYear, endYear, startGross, endGross) {
-        return movies.filter(movie => {
-            // Director Filter
-            if (director && director !== "" && !movie.director.includes(director)) {
-                return false;
-            }
-
-            // Country Filter
-            if (country && country !== "" && !movie.country.includes(country)) {
-                return false;
-            }
-
-            // Year Filter
-            if (movie.release_year < startYear || movie.release_year > endYear) {
-                return false;
-            }
-
-            // Gross Filter
-            if (movie.worldwide_gross < startGross || movie.worldwide_gross > endGross) {
-                return false;
-            }
-
-            return true; // Movie passes all filters
-        });
+        return movies.filter(movie =>
+            (!director || movie.director.includes(director)) &&
+            (!country || movie.country.includes(country)) &&
+            (movie.release_year >= startYear && movie.release_year <= endYear) &&
+            (movie.worldwide_gross >= startGross && movie.worldwide_gross <= endGross)
+        );
     }
 
+    // Display filtered movies
     function displayMovies(movies) {
         const tableBody = document.querySelector('#movie-table tbody');
-        tableBody.innerHTML = ''; // Clear existing table rows
+        tableBody.innerHTML = '';
 
         movies.forEach(movie => {
             const row = document.createElement('tr');
-
-            const titleCell = document.createElement('td');
-            titleCell.textContent = movie.title;
-            row.appendChild(titleCell);
-
-            const grossCell = document.createElement('td');
-            grossCell.textContent = movie.worldwide_gross.toLocaleString(); // Format with commas
-            row.appendChild(grossCell);
-
-            const yearCell = document.createElement('td');
-            yearCell.textContent = movie.release_year;
-            row.appendChild(yearCell);
-
-            const directorCell = document.createElement('td');
-            directorCell.textContent = movie.director.join(', '); // Handle multiple directors
-            row.appendChild(directorCell);
-
-            const countryCell = document.createElement('td');
-            countryCell.textContent = movie.country.join(', ');  // Handle multiple countries
-            row.appendChild(countryCell);
-
+            ['title', 'worldwide_gross', 'release_year', 'director', 'country'].forEach(prop => {
+                const cell = document.createElement('td');
+                cell.textContent = Array.isArray(movie[prop]) ? movie[prop].join(', ') : (prop === 'worldwide_gross' ? movie[prop].toLocaleString() : movie[prop]);
+                row.appendChild(cell);
+            });
             tableBody.appendChild(row);
         });
     }
 
-    function initializeTimeline(movies) {
-        const startYearDot = document.getElementById('startYearDot');
-        const endYearDot = document.getElementById('endYearDot');
-        const yearTimeline = document.getElementById('yearTimeline');
-        const startYearDisplay = document.getElementById('startYearDisplay');
-        const endYearDisplay = document.getElementById('endYearDisplay');
+    // Apply filters and display movies
+    function filterAndDisplayMovies(movies) {
+        const director = document.getElementById('directorFilter').value;
+        const country = document.getElementById('countryFilter').value;
+        const startYear = parseInt(document.getElementById('startYearDisplay').textContent);
+        const endYear = parseInt(document.getElementById('endYearDisplay').textContent);
+        const startGross = parseFloat(document.getElementById('minGrossDisplay').textContent.replace(/,/g, ''));
+        const endGross = parseFloat(document.getElementById('maxGrossDisplay').textContent.replace(/,/g, ''));
 
-        // Find the earliest and latest years in the dataset
-        let minYear = Math.min(...movies.map(movie => movie.release_year));
-        let maxYear = Math.max(...movies.map(movie => movie.release_year));
-
-        // Set initial positions of the dots
-        let startYear = minYear;
-        let endYear = maxYear;
-
-        // Display initial year range
-        updateYearDisplay(startYear, endYear);
-
-        // Set initial dot positions based on minYear and maxYear
-        setDotPosition(startYearDot, startYear, minYear, maxYear, yearTimeline.offsetWidth);
-        setDotPosition(endYearDot, endYear, minYear, maxYear, yearTimeline.offsetWidth);
-
-        // Make the dots draggable
-        makeDraggable(startYearDot, minYear, maxYear);
-        makeDraggable(endYearDot, minYear, maxYear);
-
-        // Function to calculate and set dot position
-        function setDotPosition(dot, year, minYear, maxYear, timelineWidth) {
-            const position = ((year - minYear) / (maxYear - minYear)) * timelineWidth;
-            dot.style.left = `${position}px`;
-        }
-
-        // Function to update the year display
-        function updateYearDisplay(startYear, endYear) {
-            startYearDisplay.textContent = startYear;
-            endYearDisplay.textContent = endYear;
-        }
-
-        function makeDraggable(dot, minYear, maxYear) {
-            let isDragging = false;
-            let startX;
-            let startLeft;
-
-            dot.addEventListener('mousedown', function(e) {
-                isDragging = true;
-                startX = e.clientX;
-                startLeft = dot.offsetLeft;
-                dot.style.cursor = 'grabbing'; // Change cursor on drag start
-            });
-
-            document.addEventListener('mousemove', function(e) {
-                if (!isDragging) return;
-                const timelineWidth = yearTimeline.offsetWidth;
-                const maxX = timelineWidth;
-
-                let newLeft = startLeft + (e.clientX - startX);
-
-                //Keep dots within the limits of the timeline and each other
-                if(dot.id === 'startYearDot'){
-                    newLeft = Math.max(0, Math.min(newLeft, endYearDot.offsetLeft));
-                } else {
-                newLeft = Math.max(startYearDot.offsetLeft, Math.min(newLeft, maxX));
-                }
-
-                dot.style.left = `${newLeft}px`;
-
-                // Calculate year based on the new position
-                let newYear = Math.round(minYear + (newLeft / timelineWidth) * (maxYear - minYear));
-
-                if (dot.id === 'startYearDot') {
-                    startYear = newYear;
-                } else {
-                    endYear = newYear;
-                }
-
-                updateYearDisplay(startYear, endYear);
-
-                //Update and filter movies whenever dot is dragged
-                filterAndDisplayMovies(movies);
-            });
-
-            document.addEventListener('mouseup', function() {
-                isDragging = false;
-                dot.style.cursor = 'grab'; // Restore the cursor
-            });
-
-            document.addEventListener('mouseleave', function() {
-                isDragging = false;
-                dot.style.cursor = 'grab'; // Restore the cursor when mouse leaves the document
-            });
-        }
-
-        function filterAndDisplayMovies(movies) {
-            const director = document.getElementById('directorFilter').value;
-            const country = document.getElementById('countryFilter').value;
-            const startGross = parseFloat(document.getElementById('minGrossDisplay').textContent.replace(/,/g, ''));
-            const endGross = parseFloat(document.getElementById('maxGrossDisplay').textContent.replace(/,/g, ''));
-
-            const filteredMovies = filterMovies(movies, director, country, startYear, endYear, startGross, endGross);
-            displayMovies(filteredMovies);
-        }
-
-        //Event listener to apply filters
-        document.getElementById('applyFilters').addEventListener('click', function() {
-            filterAndDisplayMovies(movies);
-        });
-
-        // Function to filter movies based on timeline values
-        document.getElementById('yearTimeline').addEventListener('input', function() {
-           filterAndDisplayMovies(movies);
-        });
+        const filteredMovies = filterMovies(movies, director, country, startYear, endYear, startGross, endGross);
+        displayMovies(filteredMovies);
     }
 
-    function initializeGrossTimeline(movies) {
-        const minGrossDot = document.getElementById('minGrossDot');
-        const maxGrossDot = document.getElementById('maxGrossDot');
-        const grossTimeline = document.getElementById('grossTimeline');
-        const minGrossDisplay = document.getElementById('minGrossDisplay');
-        const maxGrossDisplay = document.getElementById('maxGrossDisplay');
-
-        // Find the minimum and maximum gross values in the dataset
-        let minGross = Math.min(...movies.map(movie => movie.worldwide_gross));
-        let maxGross = Math.max(...movies.map(movie => movie.worldwide_gross));
-
-        // Set initial positions of the dots
-        let startGross = minGross;
-        let endGross = maxGross;
-
-        // Display initial gross range
-        updateGrossDisplay(startGross, endGross);
-
-        // Set initial dot positions based on minGross and maxGross
-        setDotPosition(minGrossDot, startGross, minGross, maxGross, grossTimeline.offsetWidth);
-        setDotPosition(maxGrossDot, endGross, minGross, maxGross, grossTimeline.offsetWidth);
-
-        // Function to calculate and set dot position
-        function setDotPosition(dot, gross, minGross, maxGross, timelineWidth) {
-            const position = ((gross - minGross) / (maxGross - minGross)) * timelineWidth;
-            dot.style.left = `${position}px`;
-        }
-
-        // Function to update the gross display
-        function updateGrossDisplay(startGross, endGross) {
-            minGrossDisplay.textContent = startGross.toLocaleString();
-            maxGrossDisplay.textContent = endGross.toLocaleString();
-        }
-
-        function makeDraggable(dot, minGross, maxGross) {
-            let isDragging = false;
-            let startX;
-            let startLeft;
-
-            dot.addEventListener('mousedown', function(e) {
-                isDragging = true;
-                startX = e.clientX;
-                startLeft = dot.offsetLeft;
-                dot.style.cursor = 'grabbing'; // Change cursor on drag start
-            });
-
-            document.addEventListener('mousemove', function(e) {
-                if (!isDragging) return;
-                const timelineWidth = grossTimeline.offsetWidth;
-                const maxX = timelineWidth;
-
-                let newLeft = startLeft + (e.clientX - startX);
-
-                //Keep dots within the limits of the timeline and each other
-                if(dot.id === 'minGrossDot'){
-                    newLeft = Math.max(0, Math.min(newLeft, maxGrossDot.offsetLeft));
-                } else {
-                newLeft = Math.max(minGrossDot.offsetLeft, Math.min(newLeft, maxX));
-                }
-                dot.style.left = `${newLeft}px`;
-
-                // Calculate gross based on the new position
-                let newGross = Math.round(minGross + (newLeft / timelineWidth) * (maxGross - minGross));
-
-                if (dot.id === 'minGrossDot') {
-                    startGross = newGross;
-                } else {
-                    endGross = newGross;
-                }
-
-                updateGrossDisplay(startGross, endGross);
-
-                //Update and filter movies whenever dot is dragged
-                filterAndDisplayMovies(movies);
-            });
-
-            document.addEventListener('mouseup', function() {
-                isDragging = false;
-                dot.style.cursor = 'grab'; // Restore the cursor
-            });
-
-            document.addEventListener('mouseleave', function() {
-                isDragging = false;
-                dot.style.cursor = 'grab'; // Restore the cursor when mouse leaves the document
-            });
-        }
-
-        // Make dots draggable after fetching minimum and maximum gross value from JSON
-        makeDraggable(minGrossDot, minGross, maxGross);
-        makeDraggable(maxGrossDot, minGross, maxGross);
-
-        function filterAndDisplayMovies(movies) {
-            const director = document.getElementById('directorFilter').value;
-            const country = document.getElementById('countryFilter').value;
-            const startYear = parseInt(document.getElementById('startYearDisplay').textContent);
-            const endYear = parseInt(document.getElementById('endYearDisplay').textContent);
-
-            const filteredMovies = filterMovies(movies, director, country, startYear, endYear, startGross, endGross);
-            displayMovies(filteredMovies);
-        }
-
-        //Event listener to apply filters
-        document.getElementById('applyFilters').addEventListener('click', function() {
+    // Setup event listeners
+    function setupEventListeners(movies) {
+        document.getElementById('applyFilters').addEventListener('click', () => filterAndDisplayMovies(movies));
+        document.getElementById('resetFilters').addEventListener('click', () => {
+            document.getElementById('directorFilter').value = '';
+            document.getElementById('countryFilter').value = '';
             filterAndDisplayMovies(movies);
-        });
-
-        // Function to filter movies based on timeline values
-        document.getElementById('yearTimeline').addEventListener('input', function() {
-           filterAndDisplayMovies(movies);
         });
     }
 });
